@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Anime Academy Debugger
 // @namespace    http://tampermonkey.net/
-// @version      1.15.1
+// @version      1.15.2
 // @description  Log chat events with spam module and socket ID display
 // @author       Asriel
 // @license      MIT
@@ -86,6 +86,17 @@
     });
 
     logSection.appendChild(logContent);
+
+    // Socket ID Display Inside Debugger (Below RECV Events)
+    const socketIdField = document.createElement('div');
+    Object.assign(socketIdField.style, {
+        marginTop: '10px', padding: '5px',
+        backgroundColor: '#2a2a2a', color: '#ffffff', fontWeight: 'bold',
+        textAlign: 'center', borderRadius: '3px', border: '1px solid #555'
+    });
+    socketIdField.textContent = 'Socket ID: Waiting...';
+    logSection.appendChild(socketIdField);
+
     contentWrapper.appendChild(logSection);
 
     // Spam Control Section
@@ -130,22 +141,11 @@
     debugContainer.appendChild(contentWrapper);
     document.body.appendChild(debugContainer);
 
-    // Socket ID Display Section (Always Visible)
-    const socketIdContainer = document.createElement('div');
-    Object.assign(socketIdContainer.style, {
-        position: 'fixed', top: '10px', right: '10px', padding: '10px',
-        backgroundColor: '#222', color: '#f0f0f0', border: '1px solid #555',
-        borderRadius: '5px', fontSize: '14px', fontWeight: 'bold', zIndex: '10001',
-        minWidth: '200px', textAlign: 'center'
-    });
-    socketIdContainer.textContent = 'Socket ID: Waiting...';
-    document.body.appendChild(socketIdContainer);
-
     function updateSocketId() {
         if (window.mySocket && window.mySocket.id) {
-            socketIdContainer.textContent = `Socket ID: ${window.mySocket.id}`;
+            socketIdField.textContent = `Socket ID: ${window.mySocket.id}`;
         } else {
-            socketIdContainer.textContent = 'Socket ID: Not Connected';
+            socketIdField.textContent = 'Socket ID: Not Connected';
         }
     }
 
