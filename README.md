@@ -3,6 +3,8 @@
 ## Overview
 The **Anime Academy Debugger** is a Tampermonkey userscript designed to enhance your experience on the Anime Academy chat platform. It provides a suite of debugging tools, including real-time logging of chat events, a spam module, and a display of your current Socket ID. This script is particularly useful for developers or power users who want to monitor and interact with the chat system more effectively.
 
+[![Debugger.png](https://i.postimg.cc/vHRfyWN2/Debugger.png)](https://postimg.cc/w3V7csHD)
+
 ## Features
 - **Real-time Event Logging**: Logs `DOM`, `EMIT`, and `RECV` events in a structured and easy-to-read format.
 - **Spam Module**: Allows you to send repeated messages at a customizable interval.
