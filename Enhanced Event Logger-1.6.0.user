@@ -1,0 +1,157 @@
+// ==UserScript==
+// @name         Anime Academy Debugger
+// @namespace    http://tampermonkey.net/
+// @version      1.9.0
+// @description  Log
+// @author       Asriel
+ // @license MIT
+// @match        https://anime.academy/chat*
+// @grant        none
+// @downloadURL https://update.greasyfork.org/scripts/530013/Anime%20Academy%20Debugger.user.js
+// @updateURL https://update.greasyfork.org/scripts/530013/Anime%20Academy%20Debugger.meta.js
+// ==/UserScript==
+
+
+(function () {
+    'use strict';
+
+    const logBox = document.createElement('div');
+    Object.assign(logBox.style, {
+        position: 'fixed', bottom: '10px', right: '10px', width: '500px', height: '450px',
+        backgroundColor: '#1e1e1e', color: '#f0f0f0', border: '1px solid #333',
+        borderRadius: '5px', padding: '10px', zIndex: '10000', overflow: 'auto', resize: 'both',
+        cursor: 'default', userSelect: 'text', fontSize: '12px', lineHeight: '1.4', display: 'flex', flexDirection: 'column'
+    });
+
+    const titleBar = document.createElement('div');
+    Object.assign(titleBar.style, {
+        cursor: 'move', padding: '5px', backgroundColor: '#333', color: '#f0f0f0', fontWeight: 'bold', flexShrink: 0
+    });
+    titleBar.innerHTML = 'Enhanced Event Logger (Drag to Move)';
+    logBox.appendChild(titleBar);
+
+    const logContent = document.createElement('div');
+    Object.assign(logContent.style, { display: 'flex', flexDirection: 'column', gap: '10px', overflow: 'auto', flexGrow: 1 });
+
+    ['DOM', 'EMIT', 'RECV'].forEach(type => {
+        const section = document.createElement('div');
+        Object.assign(section.style, { borderTop: '1px solid #555', paddingTop: '5px' });
+
+        const header = document.createElement('div');
+        Object.assign(header.style, { fontWeight: 'bold', marginBottom: '4px' });
+        header.textContent = `${type} Events:`;
+        section.appendChild(header);
+
+        const content = document.createElement('pre');
+        Object.assign(content.style, {
+            whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: '0', maxHeight: '100px', overflowY: 'auto', padding: '4px', backgroundColor: '#2a2a2a', borderRadius: '3px'
+        });
+        content.setAttribute('data-type', type);
+        section.appendChild(content);
+
+        logContent.appendChild(section);
+    });
+
+    const messageControls = document.createElement('div');
+    Object.assign(messageControls.style, { borderTop: '1px solid #555', paddingTop: '5px', flexShrink: 0 });
+
+    const msgInput = document.createElement('input');
+    msgInput.placeholder = 'Your message here';
+    Object.assign(msgInput.style, { width: '100%', boxSizing: 'border-box', marginBottom: '5px' });
+
+    const bgColorPicker = document.createElement('input');
+    bgColorPicker.type = 'color';
+    bgColorPicker.value = '#000000';
+    bgColorPicker.title = 'Bubble Background Color';
+
+    const textColorPicker = document.createElement('input');
+    textColorPicker.type = 'color';
+    textColorPicker.value = '#ffffff';
+    textColorPicker.title = 'Bubble Text Color';
+
+    const colorPreview = document.createElement('div');
+    Object.assign(colorPreview.style, {
+        marginTop: '5px',
+        width: '100%', height: '30px', borderRadius: '3px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontWeight: 'bold', fontSize: '13px'
+    });
+    colorPreview.textContent = 'Color Preview';
+
+    const updatePreview = () => {
+        colorPreview.style.backgroundColor = bgColorPicker.value;
+        colorPreview.style.color = textColorPicker.value;
+    };
+
+    bgColorPicker.oninput = updatePreview;
+    textColorPicker.oninput = updatePreview;
+
+    updatePreview();
+
+    const sendBtn = document.createElement('button');
+    sendBtn.textContent = 'Send Message';
+    Object.assign(sendBtn.style, { width: '100%', marginTop: '5px' });
+
+    sendBtn.onclick = () => {
+        if (!window.mySocket) return alert('Socket connection not found.');
+        const message = {
+            chatLine: msgInput.value,
+            userid: window.mySocket.userid || 6603,
+            user: window.mySocket.fixedname || 'YourUsername',
+            timestamp: Date.now(),
+            bubbleColorBG: bgColorPicker.value.replace('#', '0x'),
+            bubbleColorText: textColorPicker.value.replace('#', '0x')
+        };
+        window.mySocket.emit('newChatLine', message);
+        msgInput.value = '';
+    };
+
+    messageControls.appendChild(msgInput);
+    messageControls.appendChild(bgColorPicker);
+    messageControls.appendChild(textColorPicker);
+    messageControls.appendChild(colorPreview);
+    messageControls.appendChild(sendBtn);
+
+    logBox.appendChild(logContent);
+    logBox.appendChild(messageControls);
+    document.body.appendChild(logBox);
+
+    let dragging = false, offsetX, offsetY;
+    titleBar.onmousedown = (e) => {
+        dragging = true;
+        offsetX = e.clientX - logBox.getBoundingClientRect().left;
+        offsetY = e.clientY - logBox.getBoundingClientRect().top;
+    };
+    document.onmousemove = (e) => {
+        if (dragging) {
+            logBox.style.left = `${e.clientX - offsetX}px`;
+            logBox.style.top = `${e.clientY - offsetY}px`;
+        }
+    };
+    document.onmouseup = () => { dragging = false; };
+
+    function logEvent(message, type = 'INFO') {
+        const content = logContent.querySelector(`pre[data-type="${type}"]`);
+        const time = new Date().toLocaleTimeString();
+        content.textContent += `[${time}] ${message}\n`;
+    }
+
+    ['focus', 'blur', 'change', 'submit', 'input'].forEach(eventType => {
+        document.addEventListener(eventType, () => logEvent(`DOM Event: ${eventType}`, 'DOM'));
+    });
+
+    const originalEmit = window.io.Socket.prototype.emit;
+    window.io.Socket.prototype.emit = function (event, ...args) {
+        if (!window.mySocket) window.mySocket = this;
+        logEvent(`Emit: ${event}, Args: ${JSON.stringify(args)}`, 'EMIT');
+        return originalEmit.apply(this, [event, ...args]);
+    };
+
+    const originalOn = window.io.Socket.prototype.on;
+    window.io.Socket.prototype.on = function (event, callback) {
+        return originalOn.call(this, event, function (...args) {
+            logEvent(`Receive: ${event}, Data: ${JSON.stringify(args)}`, 'RECV');
+            callback.apply(this, args);
+        });
+    };
+})();
